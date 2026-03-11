@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>深度強化學習 HW1 - 網格地圖與策略評估</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>🗺️ Grid World Policy Evaluation</h1>
+        <p class="subtitle">深度強化學習 HW1 — 網格地圖開發 ＆ 策略評估</p>
+
+        <!-- 控制面板 -->
+        <div class="controls">
+            <div class="slider-group">
+                <label for="n-slider">Grid Size (n):</label>
+                <input type="range" id="n-slider" min="5" max="9" value="5">
+                <span id="n-value">5</span>
+            </div>
+            <button class="btn btn-primary" id="btn-evaluate" disabled>策略評估</button>
+            <button class="btn btn-primary" id="btn-value-iter" disabled style="background: linear-gradient(135deg, #ff6f00, #ff9100);">價值迭代</button>
+            <button class="btn btn-secondary" id="btn-reset">重置</button>
+        </div>
+
+        <!-- 圖例 -->
+        <div class="legend">
+            <div class="legend-item"><div class="legend-color green"></div>起點 (Start)</div>
+            <div class="legend-item"><div class="legend-color red"></div>終點 (End)</div>
+            <div class="legend-item"><div class="legend-color gray"></div>障礙物 (Obstacle)</div>
+        </div>
+
+        <!-- 狀態列 -->
+        <div class="status-bar" id="status-bar">
+            請先點擊一個格子設定 <strong>起點</strong>
+        </div>
+
+        <!-- 網格 -->
+        <div class="grid-wrapper">
+            <div class="grid" id="grid"></div>
+        </div>
+
+        <!-- 資訊列 -->
+        <div class="info-bar" id="info-bar"></div>
+    </div>
+
+    <script>
+        // ===== 狀態管理 =====
+        let n = 5;
+        let startCell = null;
+        let endCell = null;
+        let obstacles = [];
+        let phase = 'start'; // start -> end -> obstacle -> done
+
+        const slider   = document.getElementById('n-slider');
+        const nDisplay = document.getElementById('n-value');
+        const grid     = document.getElementById('grid');
+        const statusBar = document.getElementById('status-bar');
+        const infoBar  = document.getElementById('info-bar');
+        const btnEval  = document.getElementById('btn-evaluate');
+        const btnVI    = document.getElementById('btn-value-iter');
+        const btnReset = document.getElementById('btn-reset');
+
+        // ===== 初始化 =====
+        function buildGrid() {
+            grid.innerHTML = '';
+            grid.style.gridTemplateColumns = `repeat(${n}, 72px)`;
+            for (let r = 0; r < n; r++) {
+                for (let c = 0; c < n; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    cell.style.animationDelay = `${(r * n + c) * 0.02}s`;
+                    cell.addEventListener('click', () => onCellClick(r, c, cell));
+                    grid.appendChild(cell);
+                }
+            }
+        }
+
+        function resetState() {
+            startCell = null;
+            endCell = null;
+            obstacles = [];
+            phase = 'start';
+            btnEval.disabled = true;
+            btnVI.disabled = true;
+            infoBar.textContent = '';
+            updateStatus();
+            buildGrid();
+        }
+
+        function updateStatus() {
+            const maxObs = n - 2;
+            if (phase === 'start') {
+                statusBar.innerHTML = '請點擊一個格子設定 <strong>起點</strong>（綠色）';
+            } else if (phase === 'end') {
+                statusBar.innerHTML = '請點擊一個格子設定 <strong>終點</strong>（紅色）';
+            } else if (phase === 'obstacle') {
+                const remaining = maxObs - obstacles.length;
+                statusBar.innerHTML = `請點擊設定 <strong>障礙物</strong>（灰色），還可設定 <strong>${remaining}</strong> 個`;
+            } else {
+                statusBar.innerHTML = '設定完成！點擊 <strong>「策略評估」</strong> 或 <strong>「價值迭代」</strong> 按鈕開始計算';
+                statusBar.classList.add('highlight');
+            }
+        }
+
+        // ===== 點擊事件 =====
+        function onCellClick(r, c, cellEl) {
+            if (phase === 'done') return;
+
+            const maxObs = n - 2;
+
+            if (phase === 'start') {
+                startCell = [r, c];
+                cellEl.classList.add('start');
+                phase = 'end';
+                updateStatus();
+            } else if (phase === 'end') {
+                if (r === startCell[0] && c === startCell[1]) return;
+                endCell = [r, c];
+                cellEl.classList.add('end');
+                phase = maxObs > 0 ? 'obstacle' : 'done';
+                if (phase === 'done') { btnEval.disabled = false; btnVI.disabled = false; }
+                updateStatus();
+            } else if (phase === 'obstacle') {
+                if ((r === startCell[0] && c === startCell[1]) ||
+                    (r === endCell[0] && c === endCell[1])) return;
+                // 檢查是否已經是障礙物
+                for (let o of obstacles) {
+                    if (o[0] === r && o[1] === c) return;
+                }
+                obstacles.push([r, c]);
+                cellEl.classList.add('obstacle');
+                if (obstacles.length >= maxObs) {
+                    phase = 'done';
+                    btnEval.disabled = false;
+                    btnVI.disabled = false;
+                }
+                updateStatus();
+            }
+        }
+
+        // ===== 策略評估 =====
+        btnEval.addEventListener('click', async () => {
+            btnEval.disabled = true;
+            btnVI.disabled = true;
+            statusBar.innerHTML = '⏳ 正在計算策略評估...';
+
+            const payload = {
+                n: n,
+                start: startCell,
+                end: endCell,
+                obstacles: obstacles
+            };
+
+            try {
+                const res  = await fetch('/evaluate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                renderResult(data, '隨機策略評估');
+            } catch (err) {
+                statusBar.innerHTML = '❌ 發生錯誤：' + err.message;
+            }
+        });
+
+        // ===== 價值迭代 =====
+        btnVI.addEventListener('click', async () => {
+            btnEval.disabled = true;
+            btnVI.disabled = true;
+            statusBar.innerHTML = '⏳ 正在執行價值迭代...';
+
+            const payload = {
+                n: n,
+                start: startCell,
+                end: endCell,
+                obstacles: obstacles
+            };
+
+            try {
+                const res = await fetch('/value_iteration', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                renderResult(data, '最佳策略（價值迭代）');
+            } catch (err) {
+                statusBar.innerHTML = '❌ 發生錯誤：' + err.message;
+            }
+        });
+
+        function renderResult(data, label) {
+            const arrowMap = {
+                'up': '↑',
+                'down': '↓',
+                'left': '←',
+                'right': '→'
+            };
+
+            const cells = grid.querySelectorAll('.cell');
+            data.grid.forEach((row) => {
+                row.forEach((info) => {
+                    const idx = info.row * n + info.col;
+                    const cell = cells[idx];
+
+                    // 清除舊內容
+                    cell.innerHTML = '';
+
+                    if (info.policy) {
+                        const arrow = document.createElement('span');
+                        arrow.className = 'arrow';
+                        arrow.textContent = arrowMap[info.policy] || '';
+                        cell.appendChild(arrow);
+                    }
+
+                    const val = document.createElement('span');
+                    val.className = 'value';
+                    val.textContent = info.value.toFixed(3);
+                    cell.appendChild(val);
+                });
+            });
+
+            statusBar.innerHTML = `✅ ${label}完成！`;
+            statusBar.classList.add('highlight');
+            infoBar.textContent = `${label} | 收斂迭代次數: ${data.iterations} | γ = 0.9 | Grid: ${n}×${n}`;
+        }
+
+        // ===== 重置 =====
+        btnReset.addEventListener('click', resetState);
+
+        // ===== 滑桿 =====
+        slider.addEventListener('input', () => {
+            n = parseInt(slider.value);
+            nDisplay.textContent = n;
+            resetState();
+        });
+
+        // ===== 初始載入 =====
+        buildGrid();
+        updateStatus();
+    </script>
+</body>
+</html>
