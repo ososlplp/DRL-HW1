@@ -59,4 +59,17 @@
 
 ---
 
+### 對話 5 - 建立 README 並上傳 GitHub
+
+**User:** 幫我彙整功課寫成 README.md 並上傳到 GitHub。
+
+**Assistant:** 
+1. 建立 `README.md`，包含：作業說明、技術架構、專案結構、快速開始、使用方式、演算法說明
+2. 偵測到電腦未安裝 Git，自動下載安裝 MinGit
+3. 透過 GitHub API 建立 `ososlplp/DRL-HW1` 公開 repo
+4. 初始化 git、commit 7 個檔案、push 到 `main` 分支
+5. GitHub repo：https://github.com/ososlplp/DRL-HW1
+
+---
+
 *（後續對話將持續追加在此檔案中）*
