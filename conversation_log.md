@@ -37,7 +37,7 @@
 2. 自動下載 Python 3.12.9 安裝程式
 3. 靜默安裝並加入 PATH
 4. 安裝 Flask 套件
-5. 成功啟動 Flask 伺服器於 `http://127.0.0.1:5000`
+5. 成功啟陪 Flask 伺服器於 `http://127.0.0.1:5000`
 
 ---
 
@@ -69,6 +69,19 @@
 3. 透過 GitHub API 建立 `ososlplp/DRL-HW1` 公開 repo
 4. 初始化 git、commit 7 個檔案、push 到 `main` 分支
 5. GitHub repo：https://github.com/ososlplp/DRL-HW1
+
+---
+
+### 對話 6 - GitHub Pages 部署
+
+**User:** 幫我用githubio建一個網頁出來 然後修改readme
+
+**Assistant:** 
+1. 由於 GitHub Pages 只能運行純靜態網頁（HTML/CSS/JS），原先基於 Flask 的 Python 演算法無法直接在 GitHub 上執行。
+2. 開發了 **純靜態版本**，將 `Policy Evaluation` 與 `Value Iteration` 演算法完全用 JavaScript 重寫。
+3. 把靜態版本放在 `docs/` 資料夾中（`docs/index.html` 與 `docs/style.css`）。
+4. 更新 `README.md` 提供線上展示的連結（`https://ososlplp.github.io/DRL-HW1/`）。
+5. 將更新上傳至 `main` 分支。使用者只需在 GitHub Repo 設定中將 Pages 的來源設為 `/docs` 資料夾即可完成部署。
 
 ---
 
